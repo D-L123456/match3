@@ -204,6 +204,23 @@
 </head>
 <body>
     <div class="game-wrap" id="gameWrap">
+        <!-- 测试码入口 -->
+        <div style="position:absolute;top:8px;right:8px;z-index:10;">
+            <div id="testCodeArea" style="display:none;position:absolute;top:28px;right:0;background:rgba(0,0,0,0.9);border-radius:10px;padding:10px;border:1px solid rgba(255,180,255,0.2);width:180px;">
+                <div style="font-size:11px;color:rgba(255,180,255,0.5);margin-bottom:6px;">输入测试码</div>
+                <div style="display:flex;gap:4px;">
+                    <div id="testCodeInput" style="flex:1;padding:6px 8px;background:rgba(255,180,255,0.1);border:1px solid rgba(255,180,255,0.2);border-radius:6px;color:#ffb4ff;font-size:14px;font-family:monospace;min-height:28px;letter-spacing:3px;display:flex;align-items:center;justify-content:center;"></div>
+                    <button onclick="submitTestCode()" style="padding:6px 10px;background:linear-gradient(135deg,#c44dff,#6b5bff);color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;">确认</button>
+                </div>
+                <div style="display:flex;gap:4px;margin-top:6px;justify-content:center;">
+                    <button onclick="appendTestDigit('1')" style="width:32px;height:28px;background:rgba(255,180,255,0.1);border:1px solid rgba(255,180,255,0.15);border-radius:4px;color:#ffb4ff;cursor:pointer;font-size:14px;">1</button>
+                    <button onclick="appendTestDigit('2')" style="width:32px;height:28px;background:rgba(255,180,255,0.1);border:1px solid rgba(255,180,255,0.15);border-radius:4px;color:#ffb4ff;cursor:pointer;font-size:14px;">2</button>
+                    <button onclick="appendTestBackspace()" style="width:32px;height:28px;background:rgba(255,100,100,0.15);border:1px solid rgba(255,100,100,0.2);border-radius:4px;color:#ff6464;cursor:pointer;font-size:12px;">⌫</button>
+                </div>
+            </div>
+            <button onclick="toggleTestCode()" style="width:24px;height:24px;background:rgba(255,180,255,0.08);border:1px solid rgba(255,180,255,0.1);border-radius:6px;color:rgba(255,180,255,0.3);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;">⚙</button>
+        </div>
+
         <div class="top-bar">
             <div class="item"><div class="label">关卡</div><div class="value" id="levelNum">1</div></div>
             <div class="item"><div class="label">分数</div><div class="value" id="scoreNum">0</div></div>
@@ -250,6 +267,7 @@
     let selected = null;    // {r, c} or null
     let animating = false;
     let maxLevel = parseInt(localStorage.getItem('match3_max') || '1');
+    let testMode = false;
 
     // ========== 棋盘逻辑 ==========
     function initBoard() {
@@ -667,6 +685,17 @@
 
     function shuffleBoard() {
         if (animating) return;
+        // 测试模式下洗牌扣1步
+        if (testMode) {
+            moves--;
+            updateUI();
+            if (moves <= 0) {
+                const cfg = LEVELS[level];
+                clearSave();
+                showOverlay('步数用完', `差 ${cfg.target - score} 分未达标`, score, false);
+                return;
+            }
+        }
         // Fisher-Yates 洗牌
         const flat = [];
         for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) flat.push(board[r][c]);
@@ -701,6 +730,51 @@
         if (!overlay) { overlay = document.createElement('div'); overlay.id = 'overlay'; overlay.className = 'overlay'; document.body.appendChild(overlay); }
         overlay.innerHTML = `<div class="overlay-box">${html}</div>`;
         overlay.style.display = 'flex';
+    }
+
+    // ========== 测试码 ==========
+    let testCodeStr = '';
+    const TEST_CODE = '1122112211';
+
+    function toggleTestCode() {
+        const area = document.getElementById('testCodeArea');
+        area.style.display = area.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function appendTestDigit(d) {
+        if (testCodeStr.length < 10) {
+            testCodeStr += d;
+            document.getElementById('testCodeInput').textContent = testCodeStr;
+        }
+    }
+
+    function appendTestBackspace() {
+        testCodeStr = testCodeStr.slice(0, -1);
+        document.getElementById('testCodeInput').textContent = testCodeStr;
+    }
+
+    function submitTestCode() {
+        if (testCodeStr === TEST_CODE) {
+            testMode = true;
+            maxLevel = LEVELS.length;
+            localStorage.setItem('match3_max', String(maxLevel));
+            document.getElementById('testCodeArea').style.display = 'none';
+            // 显示测试模式标识
+            const badge = document.createElement('div');
+            badge.id = 'testBadge';
+            badge.style.cssText = 'position:absolute;top:8px;left:8px;background:rgba(255,0,0,0.2);border:1px solid rgba(255,0,0,0.4);border-radius:6px;padding:2px 8px;font-size:10px;color:#ff6464;z-index:10;letter-spacing:1px;';
+            badge.textContent = 'TEST';
+            document.getElementById('gameWrap').appendChild(badge);
+            // 提示
+            showLevelSelect();
+        } else {
+            testCodeStr = '';
+            document.getElementById('testCodeInput').textContent = '';
+            document.getElementById('testCodeInput').style.borderColor = 'rgba(255,100,100,0.5)';
+            setTimeout(() => {
+                document.getElementById('testCodeInput').style.borderColor = 'rgba(255,180,255,0.2)';
+            }, 500);
+        }
     }
 
     // ========== 工具 ==========
