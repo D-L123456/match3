@@ -495,6 +495,7 @@
         await processMatches();
 
         animating = false;
+        saveGame();
         checkGameState();
     }
 
@@ -536,8 +537,10 @@
                 maxLevel = Math.max(maxLevel, level + 2);
                 localStorage.setItem('match3_max', String(maxLevel));
             }
+            clearSave();
             showOverlay('过关！', `第 ${level+1} 关完成`, score, true);
         } else if (moves <= 0) {
+            clearSave();
             showOverlay('步数用完', `差 ${cfg.target - score} 分未达标`, score, false);
         } else if (!hasValidMoves()) {
             // 死局，自动洗牌
@@ -596,6 +599,32 @@
         if (o) o.style.display = 'none';
     }
 
+    // ========== 本地存储 ==========
+    function saveGame() {
+        const data = {
+            level, score, moves, combo, board,
+            maxLevel, timestamp: Date.now()
+        };
+        localStorage.setItem('match3_save', JSON.stringify(data));
+    }
+
+    function loadGame() {
+        try {
+            const raw = localStorage.getItem('match3_save');
+            if (!raw) return null;
+            const data = JSON.parse(raw);
+            // 校验数据完整性
+            if (data && typeof data.level === 'number' && data.board && data.board.length === ROWS) {
+                return data;
+            }
+        } catch (e) {}
+        return null;
+    }
+
+    function clearSave() {
+        localStorage.removeItem('match3_save');
+    }
+
     // ========== 关卡管理 ==========
     function startLevel(lv) {
         hideOverlay();
@@ -609,6 +638,21 @@
         initBoard();
         // 确保初始有可走步
         while (!hasValidMoves()) initBoard();
+        renderBoard();
+        updateUI();
+        saveGame();
+    }
+
+    function resumeGame(data) {
+        hideOverlay();
+        level = data.level;
+        score = data.score;
+        moves = data.moves;
+        combo = data.combo || 0;
+        board = data.board;
+        maxLevel = Math.max(maxLevel, data.maxLevel || 1);
+        selected = null;
+        animating = false;
         renderBoard();
         updateUI();
     }
@@ -663,7 +707,14 @@
     function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
     // ========== 初始化 ==========
-    startLevel(0);
+    (function init() {
+        const saved = loadGame();
+        if (saved) {
+            resumeGame(saved);
+        } else {
+            startLevel(0);
+        }
+    })();
     </script>
 </body>
 </html>
