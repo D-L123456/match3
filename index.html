@@ -612,6 +612,9 @@
         }
         html += `<button class="overlay-btn overlay-btn-primary" onclick="restartLevel()">重玩</button>`;
         html += `<button class="overlay-btn overlay-btn-primary" onclick="showLevelSelect()">选关</button>`;
+        if (isWin) {
+            html += `<button class="overlay-btn overlay-btn-primary" onclick="shareMatch3(${level+1},${scoreVal})">分享成绩</button>`;
+        }
 
         let overlay = document.getElementById('overlay');
         if (!overlay) { overlay = document.createElement('div'); overlay.id = 'overlay'; overlay.className = 'overlay'; document.body.appendChild(overlay); }
@@ -622,6 +625,79 @@
     function hideOverlay() {
         const o = document.getElementById('overlay');
         if (o) o.style.display = 'none';
+    }
+
+    // ========== 分享卡片 ==========
+    function shareMatch3(lv, sc) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 600; canvas.height = 400;
+        const ctx = canvas.getContext('2d');
+
+        // 背景
+        const grad = ctx.createLinearGradient(0, 0, 600, 400);
+        grad.addColorStop(0, '#1a0533');
+        grad.addColorStop(0.5, '#2d1b69');
+        grad.addColorStop(1, '#1a0533');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 600, 400);
+
+        // 光晕
+        const glow = ctx.createRadialGradient(300, 200, 0, 300, 200, 250);
+        glow.addColorStop(0, 'rgba(255,180,255,0.06)');
+        glow.addColorStop(1, 'transparent');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, 600, 400);
+
+        // 边框
+        ctx.strokeStyle = 'rgba(255,180,255,0.3)';
+        ctx.lineWidth = 2;
+        ctx.roundRect(20, 20, 560, 360, 16);
+        ctx.stroke();
+
+        // 标题
+        ctx.fillStyle = '#ffb4ff';
+        ctx.font = 'bold 38px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('开心消消乐', 300, 90);
+
+        ctx.fillStyle = 'rgba(255,180,255,0.4)';
+        ctx.font = '14px sans-serif';
+        ctx.fillText('MATCH 3 PUZZLE', 300, 115);
+
+        // 关卡
+        ctx.fillStyle = '#e0e0e0';
+        ctx.font = '18px sans-serif';
+        ctx.fillText(`第 ${lv} 关通关`, 300, 170);
+
+        // 分数
+        ctx.fillStyle = '#ffb4ff';
+        ctx.font = 'bold 64px sans-serif';
+        ctx.fillText(String(sc), 300, 250);
+
+        ctx.fillStyle = 'rgba(255,180,255,0.5)';
+        ctx.font = '16px sans-serif';
+        ctx.fillText('分', 300 + ctx.measureText(String(sc)).width/2 + 14, 240);
+
+        // 底部
+        ctx.fillStyle = 'rgba(255,180,255,0.3)';
+        ctx.font = '13px sans-serif';
+        ctx.fillText('长按保存图片，分享给好友挑战', 300, 340);
+
+        ctx.fillStyle = 'rgba(255,180,255,0.2)';
+        ctx.font = '12px sans-serif';
+        ctx.fillText('d-l123456.github.io/match3/', 300, 365);
+
+        // 显示
+        const dataUrl = canvas.toDataURL('image/png');
+        let html = `<div class="overlay-title">分享成绩</div>`;
+        html += `<div class="overlay-text">长按图片保存，发到朋友圈挑战好友</div>`;
+        html += `<img src="${dataUrl}" style="width:100%;border-radius:12px;margin:12px 0;border:1px solid rgba(255,180,255,0.2);">`;
+        html += `<button class="overlay-btn overlay-btn-primary" onclick="hideOverlay()">关闭</button>`;
+
+        let overlay = document.getElementById('overlay');
+        if (!overlay) { overlay = document.createElement('div'); overlay.id = 'overlay'; overlay.className = 'overlay'; document.body.appendChild(overlay); }
+        overlay.innerHTML = `<div class="overlay-box">${html}</div>`;
+        overlay.style.display = 'flex';
     }
 
     // ========== 本地存储 ==========
