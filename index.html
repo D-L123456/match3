@@ -762,10 +762,11 @@
 
     async function submitMatch3ToLeaderboard(sc) {
         if (!lbName3) {
-            lbName3 = prompt('请输入昵称（2-20字）') || '';
-            if (!lbName3) return;
-            lbName3 = lbName3.slice(0, 20);
-            localStorage.setItem('match3_lb_name', lbName3);
+            lbName3 = localStorage.getItem('match3_lb_name') || '';
+        }
+        if (!lbName3) {
+            showMatch3NameInput(sc);
+            return;
         }
         try {
             await fetch(`${LB_API}/submit`, {
@@ -773,7 +774,37 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ game: 'match3', mode: 'level', name: lbName3, score: sc })
             });
-        } catch (e) {}
+        } catch (e) { console.warn('LB error:', e.message); }
+    }
+
+    function showMatch3NameInput(sc) {
+        let html = `<div class="overlay-title">上榜啦！</div>`;
+        html += `<div class="overlay-text">输入昵称，登上全球排行榜</div>`;
+        html += `<div style="margin:16px 0;display:flex;gap:8px;align-items:center;justify-content:center">`;
+        html += `<input id="lbNameOverlay3" maxlength="20" placeholder="你的昵称" style="background:rgba(255,180,255,0.1);border:1px solid rgba(255,180,255,0.3);border-radius:8px;padding:8px 14px;color:#ffb4ff;font-size:16px;width:160px;outline:none;text-align:center">`;
+        html += `</div>`;
+        html += `<button class="overlay-btn overlay-btn-primary" onclick="confirmMatch3Name(${sc})">确认提交</button>`;
+        html += `<button class="overlay-btn overlay-btn-secondary" onclick="hideOverlay()" style="margin-top:8px">跳过</button>`;
+        let overlay = document.getElementById('overlay');
+        if (!overlay) { overlay = document.createElement('div'); overlay.id = 'overlay'; overlay.className = 'overlay'; document.body.appendChild(overlay); }
+        overlay.innerHTML = `<div class="overlay-box">${html}</div>`;
+        overlay.style.display = 'flex';
+        setTimeout(() => { const inp = document.getElementById('lbNameOverlay3'); if(inp) inp.focus(); }, 100);
+    }
+
+    async function confirmMatch3Name(sc) {
+        const inp = document.getElementById('lbNameOverlay3');
+        lbName3 = (inp ? inp.value.trim() : '') || '匿名玩家';
+        lbName3 = lbName3.slice(0, 20);
+        localStorage.setItem('match3_lb_name', lbName3);
+        hideOverlay();
+        try {
+            await fetch(`${LB_API}/submit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ game: 'match3', mode: 'level', name: lbName3, score: sc })
+            });
+        } catch (e) { console.warn('LB error:', e.message); }
     }
     function saveGame() {
         const data = {
