@@ -250,6 +250,7 @@
         <div class="bottom-bar">
             <button class="bottom-btn btn-shuffle" onclick="shuffleBoard()">洗牌</button>
             <button class="bottom-btn btn-restart" onclick="restartLevel()">重玩</button>
+            <button class="bottom-btn" onclick="showMatch3Leaderboard()" style="background:linear-gradient(135deg,rgba(100,77,255,0.3),rgba(196,77,255,0.3));border-color:rgba(100,77,255,0.4);color:#b4a0ff">排行</button>
         </div>
     </div>
 
@@ -604,6 +605,8 @@
     }
 
     function showOverlay(title, text, scoreVal, isWin) {
+        // 过关自动提交排行榜
+        if (isWin && scoreVal > 0) submitMatch3ToLeaderboard(scoreVal);
         let html = `<div class="overlay-title">${title}</div>`;
         html += `<div class="overlay-text">${text}</div>`;
         html += `<div class="overlay-score">${scoreVal}</div>`;
@@ -700,7 +703,78 @@
         overlay.style.display = 'flex';
     }
 
-    // ========== 本地存储 ==========
+    // ========== 全球排行榜 ==========
+    const LB_API = 'https://game-leaderboard.lkgame24.workers.dev';
+    let lbName3 = localStorage.getItem('match3_lb_name') || '';
+
+    function showMatch3Leaderboard() {
+        let html = `<div class="overlay-title">全球排行榜</div>`;
+        html += `<div style="margin:12px 0;display:flex;gap:8px;align-items:center;justify-content:center">`;
+        html += `<span style="color:rgba(255,180,255,0.6);font-size:13px">昵称</span>`;
+        html += `<input id="lbNameInput3" value="${lbName3}" maxlength="20" style="background:rgba(255,180,255,0.1);border:1px solid rgba(255,180,255,0.3);border-radius:8px;padding:6px 12px;color:#ffb4ff;font-size:14px;width:120px;outline:none">`;
+        html += `</div>`;
+        html += `<div id="rankList3" style="min-height:200px;text-align:left;font-size:13px">`;
+        html += `<div style="color:rgba(255,180,255,0.4);text-align:center;padding:40px 0">加载中...</div>`;
+        html += `</div>`;
+        html += `<button class="overlay-btn overlay-btn-primary" onclick="hideOverlay()" style="margin-top:12px">关闭</button>`;
+
+        let overlay = document.getElementById('overlay');
+        if (!overlay) { overlay = document.createElement('div'); overlay.id = 'overlay'; overlay.className = 'overlay'; document.body.appendChild(overlay); }
+        overlay.innerHTML = `<div class="overlay-box">${html}</div>`;
+        overlay.style.display = 'flex';
+
+        loadMatch3Rank();
+    }
+
+    async function loadMatch3Rank() {
+        const nameInput = document.getElementById('lbNameInput3');
+        if (nameInput) {
+            lbName3 = nameInput.value.trim() || '匿名玩家';
+            localStorage.setItem('match3_lb_name', lbName3);
+        }
+        const listEl = document.getElementById('rankList3');
+        if (!listEl) return;
+
+        try {
+            const resp = await fetch(`${LB_API}/rank?game=match3&mode=level&limit=20`);
+            const data = await resp.json();
+            if (!data.length) {
+                listEl.innerHTML = `<div style="color:rgba(255,180,255,0.4);text-align:center;padding:40px 0">暂无记录，快来第一个上榜！</div>`;
+                return;
+            }
+            let html = `<div style="background:rgba(255,180,255,0.05);border-radius:10px;padding:8px 12px">`;
+            data.forEach((entry, i) => {
+                const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span style="color:rgba(255,180,255,0.4)">${i+1}</span>`;
+                const timeStr = new Date(entry.time).toLocaleDateString('zh-CN');
+                html += `<div style="display:flex;align-items:center;padding:6px 0;${i>0?'border-top:1px solid rgba(255,180,255,0.08)':''}">`;
+                html += `<span style="width:30px;text-align:center">${medal}</span>`;
+                html += `<span style="flex:1;color:#e0e0e0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${entry.name}</span>`;
+                html += `<span style="color:#ffb4ff;font-weight:700;margin:0 8px">${entry.score}分</span>`;
+                html += `<span style="color:rgba(255,180,255,0.3);font-size:11px">${timeStr}</span>`;
+                html += `</div>`;
+            });
+            html += `</div>`;
+            listEl.innerHTML = html;
+        } catch (e) {
+            listEl.innerHTML = `<div style="color:#ff6464;text-align:center;padding:40px 0">加载失败</div>`;
+        }
+    }
+
+    async function submitMatch3ToLeaderboard(sc) {
+        if (!lbName3) {
+            lbName3 = prompt('请输入昵称（2-20字）') || '';
+            if (!lbName3) return;
+            lbName3 = lbName3.slice(0, 20);
+            localStorage.setItem('match3_lb_name', lbName3);
+        }
+        try {
+            await fetch(`${LB_API}/submit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ game: 'match3', mode: 'level', name: lbName3, score: sc })
+            });
+        } catch (e) {}
+    }
     function saveGame() {
         const data = {
             level, score, moves, combo, board,
