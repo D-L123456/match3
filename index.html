@@ -794,7 +794,6 @@
             listEl.innerHTML = `<div style="color:#ff6464;text-align:center;padding:40px 0">加载失败</div>`;
         }
     }
-    }
 
     async function submitMatch3ToLeaderboard(sc) {
         if (!lbName3) {
@@ -894,6 +893,7 @@
         combo = data.combo || 0;
         board = data.board;
         maxLevel = Math.max(maxLevel, data.maxLevel || 1);
+        levelPassed = score >= LEVELS[level].target;
         selected = null;
         animating = false;
         renderBoard();
