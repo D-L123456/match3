@@ -555,21 +555,30 @@
         }
     }
 
+    let levelPassed = false;  // 本关是否已达标
+
     function checkGameState() {
         const cfg = LEVELS[level];
-        if (score >= cfg.target) {
-            // 过关
+        if (score >= cfg.target && !levelPassed) {
+            // 首次达标
+            levelPassed = true;
             if (level + 1 < LEVELS.length) {
                 maxLevel = Math.max(maxLevel, level + 2);
                 localStorage.setItem('match3_max', String(maxLevel));
             }
             clearSave();
-            showOverlay('过关！', `第 ${level+1} 关完成`, score, true);
+            // 弹窗：达标，可选继续挑战或下一关
+            showOverlay('达标！', `第 ${level+1} 关达标 ${cfg.target} 分`, score, true);
         } else if (moves <= 0) {
+            // 步数用完
             clearSave();
-            showOverlay('步数用完', `差 ${cfg.target - score} 分未达标`, score, false);
+            if (levelPassed && score >= cfg.target) {
+                // 达标且步数用完，录入排行榜
+                showOverlay('挑战结束', `第 ${level+1} 关最终得分`, score, true);
+            } else {
+                showOverlay('步数用完', `差 ${cfg.target - score} 分未达标`, score, false);
+            }
         } else if (!hasValidMoves()) {
-            // 死局，自动洗牌
             shuffleBoard();
         }
     }
@@ -605,18 +614,37 @@
     }
 
     function showOverlay(title, text, scoreVal, isWin) {
-        // 过关自动提交排行榜
-        if (isWin && scoreVal > 0) submitMatch3ToLeaderboard(scoreVal);
         let html = `<div class="overlay-title">${title}</div>`;
         html += `<div class="overlay-text">${text}</div>`;
         html += `<div class="overlay-score">${scoreVal}</div>`;
-        if (isWin && level + 1 < LEVELS.length) {
-            html += `<button class="overlay-btn overlay-btn-primary" onclick="nextLevel()">下一关</button>`;
-        }
-        html += `<button class="overlay-btn overlay-btn-primary" onclick="restartLevel()">重玩</button>`;
-        html += `<button class="overlay-btn overlay-btn-primary" onclick="showLevelSelect()">选关</button>`;
-        if (isWin) {
+
+        if (isWin && title === '达标！') {
+            // 首次达标：继续挑战 or 下一关
+            html += `<button class="overlay-btn overlay-btn-primary" onclick="hideOverlay()">继续挑战</button>`;
+            if (level + 1 < LEVELS.length) {
+                html += `<button class="overlay-btn overlay-btn-primary" onclick="nextLevel()">下一关</button>`;
+            }
+            html += `<button class="overlay-btn overlay-btn-primary" onclick="showLevelSelect()">选关</button>`;
             html += `<button class="overlay-btn overlay-btn-primary" onclick="shareMatch3(${level+1},${scoreVal})">分享成绩</button>`;
+        } else if (isWin && title === '挑战结束') {
+            // 步数用完且达标：提交排行榜
+            html += `<button class="overlay-btn overlay-btn-primary" onclick="submitMatch3ToLeaderboard(${scoreVal})">提交排行榜</button>`;
+            if (level + 1 < LEVELS.length) {
+                html += `<button class="overlay-btn overlay-btn-primary" onclick="nextLevel()">下一关</button>`;
+            }
+            html += `<button class="overlay-btn overlay-btn-primary" onclick="restartLevel()">重玩</button>`;
+            html += `<button class="overlay-btn overlay-btn-primary" onclick="showLevelSelect()">选关</button>`;
+            html += `<button class="overlay-btn overlay-btn-primary" onclick="shareMatch3(${level+1},${scoreVal})">分享成绩</button>`;
+        } else {
+            // 普通过关或失败
+            if (isWin && level + 1 < LEVELS.length) {
+                html += `<button class="overlay-btn overlay-btn-primary" onclick="nextLevel()">下一关</button>`;
+            }
+            html += `<button class="overlay-btn overlay-btn-primary" onclick="restartLevel()">重玩</button>`;
+            html += `<button class="overlay-btn overlay-btn-primary" onclick="showLevelSelect()">选关</button>`;
+            if (isWin) {
+                html += `<button class="overlay-btn overlay-btn-primary" onclick="shareMatch3(${level+1},${scoreVal})">分享成绩</button>`;
+            }
         }
 
         let overlay = document.getElementById('overlay');
@@ -713,8 +741,15 @@
         html += `<span style="color:rgba(255,180,255,0.6);font-size:13px">昵称</span>`;
         html += `<input id="lbNameInput3" value="${lbName3}" maxlength="20" style="background:rgba(255,180,255,0.1);border:1px solid rgba(255,180,255,0.3);border-radius:8px;padding:6px 12px;color:#ffb4ff;font-size:14px;width:120px;outline:none">`;
         html += `</div>`;
+        // 关卡选择
+        html += `<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-bottom:12px;max-height:120px;overflow-y:auto">`;
+        for (let i = 0; i < LEVELS.length; i++) {
+            const isCurrent = i === level;
+            html += `<button onclick="loadMatch3RankForLevel(${i})" style="width:32px;height:32px;border-radius:8px;border:1px solid ${isCurrent?'#c44dff':'rgba(255,180,255,0.2)'};background:${isCurrent?'rgba(196,77,255,0.3)':'rgba(255,180,255,0.05)'};color:${isCurrent?'#ffb4ff':'rgba(255,180,255,0.5)'};font-size:12px;cursor:pointer">${i+1}</button>`;
+        }
+        html += `</div>`;
         html += `<div id="rankList3" style="min-height:200px;text-align:left;font-size:13px">`;
-        html += `<div style="color:rgba(255,180,255,0.4);text-align:center;padding:40px 0">加载中...</div>`;
+        html += `<div style="color:rgba(255,180,255,0.4);text-align:center;padding:40px 0">点击关卡查看排行</div>`;
         html += `</div>`;
         html += `<button class="overlay-btn overlay-btn-primary" onclick="hideOverlay()" style="margin-top:12px">关闭</button>`;
 
@@ -722,11 +757,9 @@
         if (!overlay) { overlay = document.createElement('div'); overlay.id = 'overlay'; overlay.className = 'overlay'; document.body.appendChild(overlay); }
         overlay.innerHTML = `<div class="overlay-box">${html}</div>`;
         overlay.style.display = 'flex';
-
-        loadMatch3Rank();
     }
 
-    async function loadMatch3Rank() {
+    async function loadMatch3RankForLevel(lv) {
         const nameInput = document.getElementById('lbNameInput3');
         if (nameInput) {
             lbName3 = nameInput.value.trim() || '匿名玩家';
@@ -734,15 +767,17 @@
         }
         const listEl = document.getElementById('rankList3');
         if (!listEl) return;
+        listEl.innerHTML = `<div style="color:rgba(255,180,255,0.4);text-align:center;padding:40px 0">加载中...</div>`;
 
         try {
-            const resp = await fetch(`${LB_API}/rank?game=match3&mode=level&limit=20`);
+            const resp = await fetch(`${LB_API}/rank?game=match3&mode=level${lv+1}&limit=20`);
             const data = await resp.json();
             if (!data.length) {
-                listEl.innerHTML = `<div style="color:rgba(255,180,255,0.4);text-align:center;padding:40px 0">暂无记录，快来第一个上榜！</div>`;
+                listEl.innerHTML = `<div style="color:rgba(255,180,255,0.4);text-align:center;padding:40px 0">第${lv+1}关暂无记录，快来第一个上榜！</div>`;
                 return;
             }
-            let html = `<div style="background:rgba(255,180,255,0.05);border-radius:10px;padding:8px 12px">`;
+            let html = `<div style="color:rgba(255,180,255,0.4);font-size:12px;margin-bottom:8px;text-align:center">第 ${lv+1} 关 · 目标 ${LEVELS[lv].target} 分</div>`;
+            html += `<div style="background:rgba(255,180,255,0.05);border-radius:10px;padding:8px 12px">`;
             data.forEach((entry, i) => {
                 const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span style="color:rgba(255,180,255,0.4)">${i+1}</span>`;
                 const timeStr = new Date(entry.time).toLocaleDateString('zh-CN');
@@ -759,6 +794,7 @@
             listEl.innerHTML = `<div style="color:#ff6464;text-align:center;padding:40px 0">加载失败</div>`;
         }
     }
+    }
 
     async function submitMatch3ToLeaderboard(sc) {
         if (!lbName3) {
@@ -772,14 +808,14 @@
             await fetch(`${LB_API}/submit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ game: 'match3', mode: 'level', name: lbName3, score: sc })
+                body: JSON.stringify({ game: 'match3', mode: `level${level+1}`, name: lbName3, score: sc })
             });
         } catch (e) { console.warn('LB error:', e.message); }
     }
 
     function showMatch3NameInput(sc) {
         let html = `<div class="overlay-title">上榜啦！</div>`;
-        html += `<div class="overlay-text">输入昵称，登上全球排行榜</div>`;
+        html += `<div class="overlay-text">第 ${level+1} 关 — 输入昵称登上排行榜</div>`;
         html += `<div style="margin:16px 0;display:flex;gap:8px;align-items:center;justify-content:center">`;
         html += `<input id="lbNameOverlay3" maxlength="20" placeholder="你的昵称" style="background:rgba(255,180,255,0.1);border:1px solid rgba(255,180,255,0.3);border-radius:8px;padding:8px 14px;color:#ffb4ff;font-size:16px;width:160px;outline:none;text-align:center">`;
         html += `</div>`;
@@ -802,7 +838,7 @@
             await fetch(`${LB_API}/submit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ game: 'match3', mode: 'level', name: lbName3, score: sc })
+                body: JSON.stringify({ game: 'match3', mode: `level${level+1}`, name: lbName3, score: sc })
             });
         } catch (e) { console.warn('LB error:', e.message); }
     }
@@ -837,6 +873,7 @@
         level = lv;
         score = 0;
         combo = 0;
+        levelPassed = false;
         selected = null;
         animating = false;
         const cfg = LEVELS[lv];
