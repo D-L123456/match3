@@ -770,7 +770,10 @@
         listEl.innerHTML = `<div style="color:rgba(255,180,255,0.4);text-align:center;padding:40px 0">加载中...</div>`;
 
         try {
-            const resp = await fetch(`${LB_API}/rank?game=match3&mode=level${lv+1}&limit=20`);
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 8000);
+            const resp = await fetch(`${LB_API}/rank?game=match3&mode=level${lv+1}&limit=20`, { signal: ctrl.signal });
+            clearTimeout(timer);
             const data = await resp.json();
             if (!data.length) {
                 listEl.innerHTML = `<div style="color:rgba(255,180,255,0.4);text-align:center;padding:40px 0">第${lv+1}关暂无记录，快来第一个上榜！</div>`;
@@ -804,11 +807,15 @@
             return;
         }
         try {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 5000);
             await fetch(`${LB_API}/submit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ game: 'match3', mode: `level${level+1}`, name: lbName3, score: sc })
+                body: JSON.stringify({ game: 'match3', mode: `level${level+1}`, name: lbName3, score: sc }),
+                signal: ctrl.signal
             });
+            clearTimeout(timer);
         } catch (e) { console.warn('LB error:', e.message); }
     }
 
@@ -834,11 +841,15 @@
         localStorage.setItem('match3_lb_name', lbName3);
         hideOverlay();
         try {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 5000);
             await fetch(`${LB_API}/submit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ game: 'match3', mode: `level${level+1}`, name: lbName3, score: sc })
+                body: JSON.stringify({ game: 'match3', mode: `level${level+1}`, name: lbName3, score: sc }),
+                signal: ctrl.signal
             });
+            clearTimeout(timer);
         } catch (e) { console.warn('LB error:', e.message); }
     }
     function saveGame() {
